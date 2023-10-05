@@ -4,23 +4,7 @@ use std::io;
 use std::process;
 
 fn main() {
-    let mutation = env::args()
-        .nth(1)
-        .or_else(|| {
-            println!(
-                "Please specify one of {:?} as a script argument",
-                [
-                    "lowercase",
-                    "uppercase",
-                    "no-spaces",
-                    "slugify",
-                    "little-big",
-                    "camel-case"
-                ]
-            );
-            process::exit(1);
-        })
-        .unwrap();
+    let mutation = env::args().nth(1).or_else(|| invalid_arguments()).unwrap();
     let mut input = String::new();
     io::stdin().lines().for_each(|result| {
         result
@@ -33,6 +17,21 @@ fn main() {
     println!("{}", mutate(&mutation, input));
 }
 
+fn invalid_arguments() -> ! {
+    println!(
+        "Please specify one of {:?} as a script argument",
+        [
+            "lowercase",
+            "uppercase",
+            "no-spaces",
+            "slugify",
+            "little-big",
+            "camel-case"
+        ]
+    );
+    process::exit(1);
+}
+
 // :( I cannot write a function that dispatches closures based on HashMap key yet :)
 pub fn mutate(arg: &str, content: String) -> String {
     match arg {
@@ -42,7 +41,7 @@ pub fn mutate(arg: &str, content: String) -> String {
         "slugify" => slugify(content),
         "little-big" => little_big(content),
         "camel-case" => camel_case(content),
-        _ => content,
+        _ => invalid_arguments(),
     }
 }
 
