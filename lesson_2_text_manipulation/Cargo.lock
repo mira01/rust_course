@@ -3,10 +3,25 @@
 version = 3
 
 [[package]]
+name = "csvstream"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3cdcf14542ca8d823e55d48a03cdf0d9793fd0f8ae162e2f93a27015d88f6c2e"
+
+[[package]]
 name = "deunicode"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d95203a6a50906215a502507c0f879a0ce7ff205a6111e2db2a5ef8e4bb92e43"
+
+[[package]]
+name = "pretty-csv"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c35413860d0d7d7f787352b27fb6b7a410b1f2558626e675256b8e64746da278"
+dependencies = [
+ "csvstream",
+]
 
 [[package]]
 name = "slug"
@@ -21,5 +36,6 @@ dependencies = [
 name = "transmuter"
 version = "0.1.0"
 dependencies = [
+ "pretty-csv",
  "slug",
 ]

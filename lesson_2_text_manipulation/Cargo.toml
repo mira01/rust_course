@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 slug = "0.1.4"
+pretty-csv = "0.2.0"

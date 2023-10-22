@@ -1,8 +1,10 @@
-use slug::slugify as slug_slugify;
-use std::io;
+use std::io::{self, stdin, BufReader};
 use std::error::Error;
 use std::convert::TryFrom;
 use core::fmt::Display;
+
+use slug::slugify as slug_slugify;
+use pretty_csv::Table;
 
 pub type StringResult = Result<String, Box<dyn Error>>;
 
@@ -14,6 +16,7 @@ pub enum Mutation {
     Slugify,
     LittleBig,
     CamelCase,
+    Csv,
 }
 
 impl Mutation {
@@ -25,6 +28,7 @@ impl Mutation {
             Mutation::Slugify => slugify(),
             Mutation::LittleBig => little_big(),
             Mutation::CamelCase => camel_case(),
+            Mutation::Csv => csv(),
         }
     }
 }
@@ -40,6 +44,7 @@ impl TryFrom<&str> for Mutation {
             "slugify"   => Ok(Self::Slugify),
             "little-big" => Ok(Self::LittleBig),
             "camel-case" => Ok(Self::CamelCase),
+            "csv"        => Ok(Self::Csv),
             m => Err(format!("Unknown method {}", m).into())
         }
     }
@@ -54,6 +59,7 @@ impl Display for Mutation {
             Mutation::Slugify => "slugify",
             Mutation::LittleBig => "little_big",
             Mutation::CamelCase => "camel_case",
+            Mutation::Csv => "csv",
         };
         write!(fmt, "{}", variant)
     }
@@ -126,4 +132,13 @@ fn camel_case() -> StringResult {
             word
         })
         .collect())
+}
+
+fn csv() -> StringResult {
+    let input = BufReader::new(stdin());
+    let table = Table::from_csv(input);
+    let mut output = vec![];
+    table.draw(&mut output)?;
+    let string = std::str::from_utf8(&output)?;
+    Ok(string.to_string())
 }
