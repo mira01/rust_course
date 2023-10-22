@@ -4,6 +4,7 @@ use std::io;
 use std::process;
 use std::error::Error;
 use std::convert::TryFrom;
+use core::fmt::Display;
 
 #[derive(Debug, Clone, Copy)]
 enum Mutation {
@@ -46,6 +47,20 @@ impl TryFrom<&str> for Mutation {
     }
 }
 
+impl Display for Mutation {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        let variant = match self {
+            Mutation::Lowercase => "lowercase",
+            Mutation::Uppercase => "uppercase",
+            Mutation::NoSpaces => "no_spaces",
+            Mutation::Slugify => "slugify",
+            Mutation::LittleBig => "little_big",
+            Mutation::CamelCase => "camel_case",
+        };
+        write!(fmt, "{}", variant)
+    }
+}
+
 fn main() {
     match run() {
         Ok(output) => print!("{}", output),
@@ -58,6 +73,7 @@ fn main() {
 
 fn run() -> StringResult {
     let mutation = get_mutation()?;
+    eprintln!("Will apply {}:", mutation);
     mutation.mutate()
 }
 
