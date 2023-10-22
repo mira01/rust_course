@@ -1,24 +1,83 @@
-use slug::slugify;
+use slug::slugify as slug_slugify;
 use std::env;
 use std::io;
 use std::process;
+use std::error::Error;
+use std::convert::TryFrom;
+
+#[derive(Debug, Clone, Copy)]
+enum Mutation {
+    Lowercase,
+    Uppercase,
+    NoSpaces,
+    Slugify,
+    LittleBig,
+    CamelCase,
+}
+
+type StringResult = Result<String, Box<dyn Error>>;
+
+impl Mutation {
+    fn mutate(&self) -> StringResult {
+        match &self {
+            Mutation::Lowercase => lowercase(),
+            Mutation::Uppercase => uppercase(),
+            Mutation::NoSpaces => no_spaces(),
+            Mutation::Slugify => slugify(),
+            Mutation::LittleBig => little_big(),
+            Mutation::CamelCase => camel_case(),
+        }
+    }
+}
+
+impl TryFrom<&str> for Mutation {
+    type Error = Box<dyn Error>;
+
+    fn try_from(item: &str) -> Result<Self, Self::Error> {
+        match item {
+            "lowercase" => Ok(Self::Lowercase),
+            "uppercase" => Ok(Self::Uppercase),
+            "no-spaces" => Ok(Self::NoSpaces),
+            "slugify"   => Ok(Self::Slugify),
+            "little-big" => Ok(Self::LittleBig),
+            "camel-case" => Ok(Self::CamelCase),
+            m => Err(format!("Unknown method {}", m).into())
+        }
+    }
+}
 
 fn main() {
-    let mutation = env::args().nth(1).or_else(|| invalid_arguments()).unwrap();
+    match run() {
+        Ok(output) => print!("{}", output),
+        Err(error) => {
+            eprintln!("{}", error);
+            process::exit(1);
+        }
+    };
+}
+
+fn run() -> StringResult {
+    let mutation = get_mutation()?;
+    mutation.mutate()
+}
+
+fn get_mutation() -> Result<Mutation, Box<dyn Error>> {
+   let mutation = env::args().nth(1).ok_or_else(|| "Cli argument not provided")?;
+   Mutation::try_from(&mutation as &str)
+}
+
+fn get_stdin() -> StringResult {
     let mut input = String::new();
-    io::stdin().lines().for_each(|result| {
-        result
-            .map(|l| {
-                input.push_str(&l);
-                input.push('\n');
-            })
-            .expect("Could not read from stdin")
-    });
-    println!("{}", mutate(&mutation, input));
+    let lines = io::stdin().lines();
+    for line in lines {
+        input.push_str(&line?);
+        input.push_str("\n");
+    }
+    Ok(input)
 }
 
 fn invalid_arguments() -> ! {
-    println!(
+    eprintln!(
         "Please specify one of {:?} as a script argument",
         [
             "lowercase",
@@ -32,21 +91,29 @@ fn invalid_arguments() -> ! {
     process::exit(1);
 }
 
-// :( I cannot write a function that dispatches closures based on HashMap key yet :)
-pub fn mutate(arg: &str, content: String) -> String {
-    match arg {
-        "lowercase" => content.to_lowercase(),
-        "uppercase" => content.to_uppercase(),
-        "no-spaces" => content.replace([' ', '\n'], ""),
-        "slugify" => slugify(content),
-        "little-big" => little_big(content),
-        "camel-case" => camel_case(content),
-        _ => invalid_arguments(),
-    }
+fn lowercase() -> Result<String, Box<dyn Error>> {
+    let input = get_stdin()?;
+    Ok(input.to_lowercase())
 }
 
-fn little_big(content: String) -> String {
-    content
+fn uppercase() -> Result<String, Box<dyn Error>> {
+    let input = get_stdin()?;
+    Ok(input.to_uppercase())
+}
+
+fn no_spaces() -> Result<String, Box<dyn Error>> {
+    let input = get_stdin()?;
+    Ok(input.replace([' ', '\n'], ""))
+}
+
+fn slugify() -> StringResult {
+    let input = get_stdin()?;
+    Ok(slug_slugify(input))
+}
+
+fn little_big() -> StringResult {
+    let input = get_stdin()?;
+    Ok(input
         .split_whitespace()
         .zip([false, true].into_iter().cycle())
         .map(|(w, big)| {
@@ -60,12 +127,12 @@ fn little_big(content: String) -> String {
         })
         .collect::<String>()
         .trim()
-        .to_string()
+        .to_string())
 }
 
-// maybe could be simplified
-fn camel_case(content: String) -> String {
-    content
+fn camel_case() -> StringResult {
+    let input = get_stdin()?;
+    Ok(input
         .split_whitespace()
         .map(|w| {
             let mut word = String::new();
@@ -80,7 +147,7 @@ fn camel_case(content: String) -> String {
             }
             word
         })
-        .collect()
+        .collect())
 }
 
 #[cfg(test)]
