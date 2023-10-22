@@ -62,7 +62,7 @@ fn run() -> StringResult {
 }
 
 fn get_mutation() -> Result<Mutation, Box<dyn Error>> {
-   let mutation = env::args().nth(1).ok_or_else(|| "Cli argument not provided")?;
+   let mutation = env::args().nth(1).ok_or("Cli argument not provided")?;
    Mutation::try_from(&mutation as &str)
 }
 
@@ -71,24 +71,9 @@ fn get_stdin() -> StringResult {
     let lines = io::stdin().lines();
     for line in lines {
         input.push_str(&line?);
-        input.push_str("\n");
+        input.push('\n');
     }
     Ok(input)
-}
-
-fn invalid_arguments() -> ! {
-    eprintln!(
-        "Please specify one of {:?} as a script argument",
-        [
-            "lowercase",
-            "uppercase",
-            "no-spaces",
-            "slugify",
-            "little-big",
-            "camel-case"
-        ]
-    );
-    process::exit(1);
 }
 
 fn lowercase() -> Result<String, Box<dyn Error>> {
