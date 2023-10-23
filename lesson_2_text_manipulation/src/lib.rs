@@ -1,10 +1,14 @@
-use std::io::{self, stdin, BufReader};
+use std::io::{self, stdin};
 use std::error::Error;
 use std::convert::TryFrom;
 use core::fmt::Display;
 
 use slug::slugify as slug_slugify;
-use pretty_csv::Table;
+use csv as csv_crate;
+use stanza::renderer::console::Console;
+use stanza::renderer::Renderer;
+use stanza::style::{Styles, MaxWidth};
+use stanza::table::Table;
 
 pub type StringResult = Result<String, Box<dyn Error>>;
 
@@ -135,10 +139,17 @@ fn camel_case() -> StringResult {
 }
 
 fn csv() -> StringResult {
-    let input = BufReader::new(stdin());
-    let table = Table::from_csv(input);
-    let mut output = vec![];
-    table.draw(&mut output)?;
-    let string = std::str::from_utf8(&output)?;
-    Ok(string.to_string())
+    let mut rdr = csv_crate::Reader::from_reader(stdin());
+    let mut table = Table::with_styles(Styles::default().with(MaxWidth(80)));
+    for result in rdr.records() {
+        let record = result?;
+        table.push_row(record.iter());
+    }
+    if table.is_empty() {
+        return Err("Cannot render table".into());
+    }
+    let renderer = Console::default();
+    let mut output = renderer.render(&table).to_string();
+    output.push_str("\n");
+    Ok(output)
 }
