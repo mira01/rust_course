@@ -1,16 +1,19 @@
-use std::io::{self, stdin};
-use std::error::Error;
-use std::convert::TryFrom;
 use core::fmt::Display;
+use std::convert::TryFrom;
+use std::error::Error;
+use std::io::{self, stdin};
 
-use slug::slugify as slug_slugify;
 use csv as csv_crate;
+use slug::slugify as slug_slugify;
 use stanza::renderer::console::Console;
 use stanza::renderer::Renderer;
-use stanza::style::{Styles, MaxWidth};
+use stanza::style::{MaxWidth, Styles};
 use stanza::table::Table;
+use term_size;
 
 pub type StringResult = Result<String, Box<dyn Error>>;
+
+const DEFAULT_WIDTH: usize = 80;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Mutation {
@@ -45,11 +48,11 @@ impl TryFrom<&str> for Mutation {
             "lowercase" => Ok(Self::Lowercase),
             "uppercase" => Ok(Self::Uppercase),
             "no-spaces" => Ok(Self::NoSpaces),
-            "slugify"   => Ok(Self::Slugify),
+            "slugify" => Ok(Self::Slugify),
             "little-big" => Ok(Self::LittleBig),
             "camel-case" => Ok(Self::CamelCase),
-            "csv"        => Ok(Self::Csv),
-            m => Err(format!("Unknown method {}", m).into())
+            "csv" => Ok(Self::Csv),
+            m => Err(format!("Unknown method {}", m).into()),
         }
     }
 }
@@ -69,6 +72,7 @@ impl Display for Mutation {
     }
 }
 
+/// Get standard input as string or return error
 pub fn get_stdin() -> StringResult {
     let mut input = String::new();
     let lines = io::stdin().lines();
@@ -138,9 +142,17 @@ fn camel_case() -> StringResult {
         .collect())
 }
 
+/// Csv mutation
+/// I am not happy how this function looks. It does manny things at once
 fn csv() -> StringResult {
     let mut rdr = csv_crate::Reader::from_reader(stdin());
-    let mut table = Table::with_styles(Styles::default().with(MaxWidth(80)));
+    let headers = rdr.headers()?;
+    if headers.is_empty() {
+        return Err("Empty headers".into());
+    }
+    let max_column_width = max_column_width(headers.len());
+    let mut table = Table::with_styles(Styles::default().with(MaxWidth(max_column_width)));
+    table.push_row(headers);
     for result in rdr.records() {
         let record = result?;
         table.push_row(record.iter());
@@ -148,8 +160,25 @@ fn csv() -> StringResult {
     if table.is_empty() {
         return Err("Cannot render table".into());
     }
+
     let renderer = Console::default();
     let mut output = renderer.render(&table).to_string();
-    output.push_str("\n");
+    output.push('\n');
     Ok(output)
+}
+
+/// Get terminal width
+fn term_width() -> usize {
+    if let Some((width, _)) = term_size::dimensions() {
+        width
+    } else {
+        DEFAULT_WIDTH
+    }
+}
+
+/// Compute maximum column width based on size of terminal
+fn max_column_width(count: usize) -> usize {
+    let delimiters = count - 1;
+    let borders = 2;
+    (term_width() - borders - delimiters) / count
 }
