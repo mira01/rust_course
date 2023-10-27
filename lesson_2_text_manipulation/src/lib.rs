@@ -27,15 +27,15 @@ pub enum Mutation {
 }
 
 impl Mutation {
-    pub fn mutate(&self) -> StringResult {
+    pub fn mutate(&self, text: String) -> StringResult {
         match &self {
-            Mutation::Lowercase => lowercase(),
-            Mutation::Uppercase => uppercase(),
-            Mutation::NoSpaces => no_spaces(),
-            Mutation::Slugify => slugify(),
-            Mutation::LittleBig => little_big(),
-            Mutation::CamelCase => camel_case(),
-            Mutation::Csv => csv(),
+            Mutation::Lowercase => lowercase(text),
+            Mutation::Uppercase => uppercase(text),
+            Mutation::NoSpaces => no_spaces(text),
+            Mutation::Slugify => slugify(text),
+            Mutation::LittleBig => little_big(text),
+            Mutation::CamelCase => camel_case(text),
+            Mutation::Csv => csv(text),
         }
     }
 }
@@ -72,39 +72,24 @@ impl Display for Mutation {
     }
 }
 
-/// Get standard input as string or return error
-pub fn get_stdin() -> StringResult {
-    let mut input = String::new();
-    let lines = io::stdin().lines();
-    for line in lines {
-        input.push_str(&line?);
-        input.push('\n');
-    }
-    Ok(input)
-}
 
-fn lowercase() -> Result<String, Box<dyn Error>> {
-    let input = get_stdin()?;
+fn lowercase(input: String) -> StringResult {
     Ok(input.to_lowercase())
 }
 
-fn uppercase() -> Result<String, Box<dyn Error>> {
-    let input = get_stdin()?;
+fn uppercase(input: String) -> StringResult {
     Ok(input.to_uppercase())
 }
 
-fn no_spaces() -> Result<String, Box<dyn Error>> {
-    let input = get_stdin()?;
+fn no_spaces(input: String) -> StringResult {
     Ok(input.replace([' ', '\n'], ""))
 }
 
-fn slugify() -> StringResult {
-    let input = get_stdin()?;
+fn slugify(input: String) -> StringResult {
     Ok(slug_slugify(input))
 }
 
-fn little_big() -> StringResult {
-    let input = get_stdin()?;
+fn little_big(input: String) -> StringResult {
     Ok(input
         .split_whitespace()
         .zip([false, true].into_iter().cycle())
@@ -122,8 +107,7 @@ fn little_big() -> StringResult {
         .to_string())
 }
 
-fn camel_case() -> StringResult {
-    let input = get_stdin()?;
+fn camel_case(input: String) -> StringResult {
     Ok(input
         .split_whitespace()
         .map(|w| {
@@ -144,8 +128,8 @@ fn camel_case() -> StringResult {
 
 /// Csv mutation
 /// I am not happy how this function looks. It does manny things at once
-fn csv() -> StringResult {
-    let mut rdr = csv_crate::Reader::from_reader(stdin());
+fn csv(input: String) -> StringResult {
+    let mut rdr = csv_crate::Reader::from_reader(input.as_bytes());
     let headers = rdr.headers()?;
     if headers.is_empty() {
         return Err("Empty headers".into());

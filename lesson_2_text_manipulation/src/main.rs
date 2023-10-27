@@ -1,5 +1,6 @@
 use std::env;
 use std::error::Error;
+use std::io;
 use std::process;
 use transmuter::{Mutation, StringResult};
 
@@ -25,10 +26,22 @@ fn run(mode: &Mode) -> StringResult {
     match mode {
         Mode::NonInteractive(mutation) => {
             eprintln!("Will apply {}:", mutation);
-            mutation.mutate()
+            let stdin = get_stdin()?;
+            mutation.mutate(stdin)
         },
         Mode::Interactive => enter_loop()
     }
+}
+
+/// Get standard input as string or return error
+pub fn get_stdin() -> StringResult {
+    let mut input = String::new();
+    let lines = io::stdin().lines();
+    for line in lines {
+        input.push_str(&line?);
+        input.push('\n');
+    }
+    Ok(input)
 }
 
 fn enter_loop() -> StringResult {
