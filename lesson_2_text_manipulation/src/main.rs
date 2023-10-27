@@ -4,6 +4,9 @@ use std::io;
 use std::process;
 use transmuter::{Mutation, StringResult};
 
+mod command;
+mod interactive;
+
 #[derive(Clone, Copy)]
 enum Mode{
     Interactive,
@@ -29,7 +32,10 @@ fn run(mode: &Mode) -> StringResult {
             let stdin = get_stdin()?;
             mutation.mutate(stdin)
         },
-        Mode::Interactive => enter_loop()
+        Mode::Interactive => {
+            interactive::enter_loop();
+            Ok("ok".into())
+            }
     }
 }
 
@@ -42,10 +48,6 @@ pub fn get_stdin() -> StringResult {
         input.push('\n');
     }
     Ok(input)
-}
-
-fn enter_loop() -> StringResult {
-    unimplemented!();
 }
 
 fn get_mode() -> Result<Mode, Box<dyn Error>> {
