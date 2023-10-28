@@ -1,11 +1,12 @@
+mod command;
+mod interactive;
+mod mutation;
+
+use mutation::{Mutation, StringResult};
 use std::env;
 use std::error::Error;
 use std::io::{self, BufWriter};
 use std::process;
-use transmuter::{Mutation, StringResult};
-
-mod command;
-mod interactive;
 
 #[derive(Clone, Copy)]
 enum Mode {

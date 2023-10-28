@@ -1,5 +1,7 @@
-use crate::{Mutation, StringResult};
+use crate::mutation::{Mutation, StringResult};
+
 use std::error::Error;
+use std::fs;
 
 #[derive(Debug)]
 pub struct Command {
@@ -21,22 +23,20 @@ impl TryFrom<&str> for Command {
         }
         Ok(Command {
             operation,
-            argument: argument.to_string(),
+            argument: argument.trim().to_string(),
         })
     }
 }
 
 impl Command {
     pub fn execute(self) -> StringResult {
-        match self {
+        let arg = match self {
             Command {
                 operation: Mutation::Csv,
                 argument,
-            } => unimplemented!(), ///////////TODO//////
-            Command {
-                operation: mutation,
-                argument,
-            } => mutation.mutate(argument),
-        }
+            } => fs::read_to_string(argument)?,
+            Command { argument, .. } => argument,
+        };
+        self.operation.mutate(arg)
     }
 }

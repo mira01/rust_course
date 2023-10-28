@@ -84,14 +84,13 @@ mod test {
         let (stdout, stderr) = enter_loop(Cursor::new(stdin), stdout, stderr).unwrap();
         let stdout = std::str::from_utf8(&stdout).unwrap();
         let stderr = std::str::from_utf8(&stderr).unwrap();
-        println!("stdout: {:?}, stderr {:?}", stdout, stderr);
         assert_eq!(expected_out, stdout);
         assert_eq!(expected_err, stderr);
     }
 
     #[test]
     fn uppercase_works() {
-        test_streams("uppercase vole padni".to_string(), "VOLE PADNI \n", "")
+        test_streams("uppercase vole padni".to_string(), "VOLE PADNI\n", "")
     }
 
     #[test]
@@ -101,5 +100,19 @@ mod test {
             "",
             "\u{1b}[0;31mUnknown method blabla\u{1b}[0m\n",
         )
+    }
+
+    #[test]
+    fn longer_session_works() {
+        let input = "lowercase Lorem ipsum DOLOR sIT AmeT\n\
+                     no-spaces Lorem ipsum DOLOR sIT AmeT\n\
+                     blabla Lorem ipsum DOLOR sIT AmeT\n\
+                     camel-case Lorem ipsum DOLOR sIT AmeT\n"
+            .to_string();
+        let output = "lorem ipsum dolor sit amet\n\
+                      LoremipsumDOLORsITAmeT\n\
+                      LoremIpsumDolorSitAmet\n";
+        let error = "\u{1b}[0;31mUnknown method blabla\u{1b}[0m\n";
+        test_streams(input, output, error);
     }
 }
