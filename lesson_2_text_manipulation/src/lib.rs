@@ -1,7 +1,8 @@
 use core::fmt::Display;
 use std::convert::TryFrom;
 use std::error::Error;
-use std::io::{self, stdin};
+
+use std::io::{BufWriter, BufReader};
 
 use csv as csv_crate;
 use slug::slugify as slug_slugify;

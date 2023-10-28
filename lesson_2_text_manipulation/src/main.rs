@@ -1,6 +1,6 @@
 use std::env;
 use std::error::Error;
-use std::io;
+use std::io::{self,BufWriter, BufReader};
 use std::process;
 use transmuter::{Mutation, StringResult};
 
@@ -15,27 +15,29 @@ enum Mode{
 
 fn main() {
     let result = get_mode()
-        .and_then(|mode|run(&mode));
+        .and_then(|mode| {
+            match mode {
+                Mode::NonInteractive(mutation) => {
+                    eprintln!("Will apply {}:", mutation);
+                    let stdin = get_stdin()?;
+                    let res = mutation.mutate(stdin)?;
+                    println!("{}", res);
+                    Ok(())
+                },
+                Mode::Interactive => {
+                    let stdin = io::stdin();
+                    let stdout = BufWriter::new(io::stdout());
+                    let stderr = BufWriter::new(io::stderr());
+                    interactive::enter_loop(stdin, stdout, stderr)
+                }
+            }
+        });
     match result {
-        Ok(result) => println!("{}", result),
+        Ok(()) => eprintln!("{}", "Processing complete"),
         Err(error) => {
             eprintln!("\x1b[0;31m{}\x1b[0m", error);
             process::exit(1);
         },
-    }
-}
-
-fn run(mode: &Mode) -> StringResult {
-    match mode {
-        Mode::NonInteractive(mutation) => {
-            eprintln!("Will apply {}:", mutation);
-            let stdin = get_stdin()?;
-            mutation.mutate(stdin)
-        },
-        Mode::Interactive => {
-            interactive::enter_loop();
-            Ok("ok".into())
-            }
     }
 }
 
