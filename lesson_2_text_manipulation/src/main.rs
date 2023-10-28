@@ -17,10 +17,17 @@ enum Mode {
 fn main() {
     let result = get_mode().and_then(|mode| match mode {
         Mode::NonInteractive(mutation) => {
-            eprintln!("Will apply {}:", mutation);
-            let stdin = get_stdin()?;
-            let res = mutation.mutate(stdin)?;
-            println!("{}", res);
+            match mutation {
+                Mutation::Help => {
+                    println!("{}", mutation.mutate("".to_string())?)
+                },
+                _ => {
+                    eprintln!("Will apply {}:", mutation);
+                    let stdin = get_stdin()?;
+                    let res = mutation.mutate(stdin)?;
+                    println!("{}", res);
+                }
+            }
             Ok(())
         }
         Mode::Interactive => {

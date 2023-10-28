@@ -23,6 +23,7 @@ pub enum Mutation {
     LittleBig,
     CamelCase,
     Csv,
+    Help,
 }
 
 impl Mutation {
@@ -35,6 +36,7 @@ impl Mutation {
             Mutation::LittleBig => little_big(text),
             Mutation::CamelCase => camel_case(text),
             Mutation::Csv => csv(text),
+            Mutation::Help => help(),
         }
     }
 }
@@ -51,6 +53,7 @@ impl TryFrom<&str> for Mutation {
             "little-big" => Ok(Self::LittleBig),
             "camel-case" => Ok(Self::CamelCase),
             "csv" => Ok(Self::Csv),
+            "help" => Ok(Self::Help),
             m => Err(format!("Unknown method {}", m).into()),
         }
     }
@@ -66,9 +69,25 @@ impl Display for Mutation {
             Mutation::LittleBig => "little_big",
             Mutation::CamelCase => "camel_case",
             Mutation::Csv => "csv",
+            Mutation::Help => "help",
         };
         write!(fmt, "{}", variant)
     }
+}
+
+fn help() -> StringResult {
+    let help = "This program can perform following operations:\n\
+        lowercase uppercase no-spaces slugify little-big camel-case csv help\n\
+        and can run in two modes. \n\
+        \n\
+        In first mode it expects name of the operation as a cli argument and text to operate on \n\
+        coming from stdin. In this mode it can handle multiline strings.\n\
+        \n\
+        In second mode it runs in a loop reading lines where first word is operation name\n\
+        and the rest is argument for the operation.\n\
+        csv operation works differently: the text after method name is considered a path to read from\n\
+        ";
+    Ok(help.to_string())
 }
 
 fn lowercase(input: String) -> StringResult {
