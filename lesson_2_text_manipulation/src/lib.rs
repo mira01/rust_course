@@ -2,15 +2,13 @@ use core::fmt::Display;
 use std::convert::TryFrom;
 use std::error::Error;
 
-use std::io::{BufWriter, BufReader};
-
 use csv as csv_crate;
 use slug::slugify as slug_slugify;
 use stanza::renderer::console::Console;
 use stanza::renderer::Renderer;
 use stanza::style::{MaxWidth, Styles};
 use stanza::table::Table;
-use term_size;
+use term_size::dimensions as term_size_dimensions;
 
 pub type StringResult = Result<String, Box<dyn Error>>;
 
@@ -72,7 +70,6 @@ impl Display for Mutation {
         write!(fmt, "{}", variant)
     }
 }
-
 
 fn lowercase(input: String) -> StringResult {
     Ok(input.to_lowercase())
@@ -154,7 +151,7 @@ fn csv(input: String) -> StringResult {
 
 /// Get terminal width
 fn term_width() -> usize {
-    if let Some((width, _)) = term_size::dimensions() {
+    if let Some((width, _)) = term_size_dimensions() {
         width
     } else {
         DEFAULT_WIDTH

@@ -1,10 +1,10 @@
-use std::error::Error;
 use crate::{Mutation, StringResult};
+use std::error::Error;
 
 #[derive(Debug)]
-pub struct Command{
+pub struct Command {
     operation: Mutation,
-    argument: String
+    argument: String,
 }
 
 impl TryFrom<&str> for Command {
@@ -16,10 +16,10 @@ impl TryFrom<&str> for Command {
         let operation = Mutation::try_from(operation_name)?;
         let mut argument: String = String::new();
         for part in split {
-            argument.push_str(&part);
+            argument.push_str(part);
             argument.push(' ');
         }
-        Ok( Command {
+        Ok(Command {
             operation,
             argument: argument.to_string(),
         })
@@ -29,10 +29,14 @@ impl TryFrom<&str> for Command {
 impl Command {
     pub fn execute(self) -> StringResult {
         match self {
-            Command{operation: Mutation::Csv, argument} => unimplemented!(),  ///////////TODO//////
-            Command{operation: mutation, argument} => {
-                mutation.mutate(argument)
-            }
+            Command {
+                operation: Mutation::Csv,
+                argument,
+            } => unimplemented!(), ///////////TODO//////
+            Command {
+                operation: mutation,
+                argument,
+            } => mutation.mutate(argument),
         }
     }
 }
