@@ -28,7 +28,8 @@ fn main() {
                     let stdin = io::stdin();
                     let stdout = BufWriter::new(io::stdout());
                     let stderr = BufWriter::new(io::stderr());
-                    interactive::enter_loop(stdin, stdout, stderr)
+                    interactive::enter_loop(stdin, stdout, stderr)?;
+                    Ok(())
                 }
             }
         });
