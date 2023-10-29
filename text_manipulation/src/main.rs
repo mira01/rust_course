@@ -1,3 +1,4 @@
+//! Module responsible for decission how to run the program and starting up
 mod command;
 mod interactive;
 mod mutation;
@@ -18,6 +19,7 @@ fn main() {
     let result = get_mode().and_then(|mode| match mode {
         Mode::NonInteractive(mutation) => {
             match mutation {
+                // help is special as it does not take argument
                 Mutation::Help => {
                     println!("{}", mutation.mutate("".to_string())?)
                 },
@@ -58,6 +60,7 @@ pub fn get_stdin() -> StringResult {
     Ok(input)
 }
 
+/// Determine mode of a program
 fn get_mode() -> Result<Mode, Box<dyn Error>> {
     if env::args().len() == 1 {
         Ok(Mode::Interactive)

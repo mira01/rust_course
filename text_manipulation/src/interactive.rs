@@ -5,6 +5,8 @@ use std::sync::mpsc;
 use std::thread;
 
 // I use a lot of unwraps inside threads. I do not know how to recover from these situations
+
+/// A function that starts threads that do reading, executing and writing results
 pub fn enter_loop<
     R: Read + Send + 'static,
     W1: Write + Send + 'static,
@@ -18,6 +20,8 @@ pub fn enter_loop<
     let (processor_out, writer_in) = mpsc::channel::<Result<String, String>>();
     let reader_err = processor_out.clone();
 
+    // Thread that reads commands from input stream. In case of succes it passes command 
+    // to executing thread; otherwise it sends error to writer thread
     let reader = thread::spawn(move || {
         let stdin = BufReader::new(stdin);
         for line in LineIterator(stdin.lines()) {
@@ -33,6 +37,7 @@ pub fn enter_loop<
         }
     });
 
+    // Thread that executes the command and sends the result to writer thread
     let processor = thread::spawn(move || {
         while let Ok(command) = processor_in.recv() {
             let res = command.execute().map_err(|e| e.to_string());
@@ -40,6 +45,7 @@ pub fn enter_loop<
         }
     });
 
+    // Thread that writes results to two output buffers: success buffer and error buffer
     let writer = thread::spawn(move || {
         while let Ok(text) = writer_in.recv() {
             match text {
@@ -87,7 +93,7 @@ impl<B: BufRead> Iterator for LineIterator<B>{
                         return Some(Ok(s));
                     } else {
                         // cut tre trailing backshlash;
-                        s.push_str(&line.strip_suffix('\\').unwrap());       
+                        s.push_str(line.strip_suffix('\\').unwrap());       
                         s.push('\n');       
                     }
                 },

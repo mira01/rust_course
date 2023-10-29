@@ -14,6 +14,7 @@ pub type StringResult = Result<String, Box<dyn Error>>;
 
 const DEFAULT_WIDTH: usize = 80;
 
+/// Operation over a text; See interactive.rs for tests
 #[derive(Debug, Clone, Copy)]
 pub enum Mutation {
     Lowercase,

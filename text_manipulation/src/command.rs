@@ -3,6 +3,7 @@ use crate::mutation::{Mutation, StringResult};
 use std::error::Error;
 use std::fs;
 
+/// A Command to be run. It contains operation to be run and a text to act on
 #[derive(Debug)]
 pub struct Command {
     operation: Mutation,
