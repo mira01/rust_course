@@ -1,6 +1,6 @@
 use crate::command::Command;
 use std::error::Error;
-use std::io::{BufRead, BufReader, Read, Result as IoResult, Write};
+use std::io::{BufRead, BufReader, Read, Result as IoResult, Write, Lines};
 use std::sync::mpsc;
 use std::thread;
 
@@ -20,7 +20,7 @@ pub fn enter_loop<
 
     let reader = thread::spawn(move || {
         let stdin = BufReader::new(stdin);
-        for line in stdin.lines() {
+        for line in LineIterator(stdin.lines()) {
             let c = get_command(line);
             match c {
                 Ok(c) => {
@@ -73,6 +73,31 @@ fn get_command(raw_line: IoResult<String>) -> Result<Command, String> {
     Command::try_from(&line as &str).map_err(|e| e.to_string())
 }
 
+pub struct LineIterator<B: BufRead>(Lines<B>);
+impl<B: BufRead> Iterator for LineIterator<B>{
+    type Item = IoResult<String>;
+    fn next(&mut self) -> Option<IoResult<String>>{
+        let mut s = String::new();
+        loop {
+            let next = self.0.next();
+            match next {
+                Some(Ok(line)) => {
+                    if !line.ends_with('\\'){
+                        s.push_str(&line);
+                        return Some(Ok(s));
+                    } else {
+                        // cut tre trailing backshlash;
+                        s.push_str(&line.strip_suffix('\\').unwrap());       
+                        s.push('\n');       
+                    }
+                },
+                _ => return next
+            }
+
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::enter_loop;
@@ -100,6 +125,11 @@ mod test {
             "",
             "\u{1b}[0;31mUnknown method blabla\u{1b}[0m\n",
         )
+    }
+
+    #[test]
+    fn multiline_works() {
+        test_streams("uppercase vole padni\\\nvoko bere".to_string(), "VOLE PADNI\nVOKO BERE\n", "")
     }
 
     #[test]

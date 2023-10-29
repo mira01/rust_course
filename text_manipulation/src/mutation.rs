@@ -81,10 +81,11 @@ fn help() -> StringResult {
         and can run in two modes. \n\
         \n\
         In first mode it expects name of the operation as a cli argument and text to operate on \n\
-        coming from stdin. In this mode it can handle multiline strings.\n\
+        coming from stdin. It can handle multiline strings.\n\
         \n\
         In second mode it runs in a loop reading lines where first word is operation name\n\
-        and the rest is argument for the operation.\n\
+        and the rest is argument for the operation. If the line ends with a backshlash (\n)\
+        it treats the input as multiline string\n\
         csv operation works differently: the text after method name is considered a path to read from\n\
         ";
     Ok(help.to_string())
