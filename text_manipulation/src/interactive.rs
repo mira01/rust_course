@@ -1,4 +1,5 @@
 use crate::command::Command;
+use crate::message::Message;
 use std::error::Error;
 use std::io::{BufRead, BufReader, Read, Result as IoResult, Write, Lines};
 use std::sync::mpsc;
@@ -8,17 +9,22 @@ use std::thread;
 
 /// A function that starts threads that do reading, executing and writing results
 pub fn enter_loop<
-    R: Read + Send + 'static,
+    R1: Read + Send + 'static,
+    R2: Read + Send + 'static,
     W1: Write + Send + 'static,
     W2: Write + Send + 'static,
+    W3: Write + Send + 'static,
 >(
-    stdin: R,
+    stdin: R1,
     mut stdout: W1,
     mut stderr: W2,
+    mut net_in: R2,
+    mut net_out: W3
 ) -> Result<(W1, W2), Box<dyn Error>> {
     let (reader_out, processor_in) = mpsc::channel::<Command>();
     let (processor_out, writer_in) = mpsc::channel::<Result<String, String>>();
     let reader_err = processor_out.clone();
+    let net_reader_out = reader_out.clone();
 
     // Thread that reads commands from input stream. In case of succes it passes command 
     // to executing thread; otherwise it sends error to writer thread
@@ -27,6 +33,9 @@ pub fn enter_loop<
         for line in LineIterator(stdin.lines()) {
             let c = get_command(line);
             match c {
+                Ok(Command::Quit) => {
+                    return ();
+                }
                 Ok(c) => {
                     reader_out.send(c).unwrap();
                 }
@@ -37,11 +46,18 @@ pub fn enter_loop<
         }
     });
 
+    let net_reader = thread::spawn(move || {
+        let reader = BufReader::new(net_in);
+        todo!();
+    });
+
     // Thread that executes the command and sends the result to writer thread
     let processor = thread::spawn(move || {
         while let Ok(command) = processor_in.recv() {
-            let res = command.execute().map_err(|e| e.to_string());
-            processor_out.send(res).unwrap();
+            match send_message(command, &mut net_out) {
+                Err(e) => processor_out.send(Err(e.to_string())),
+                Ok(_) => continue,
+            };
         }
     });
 
@@ -77,6 +93,12 @@ pub fn enter_loop<
 fn get_command(raw_line: IoResult<String>) -> Result<Command, String> {
     let line = raw_line.map_err(|e| e.to_string())?;
     Command::try_from(&line as &str).map_err(|e| e.to_string())
+}
+
+fn send_message<T: Write>(command: Command, stream: &mut T) -> Result<(), Box<dyn Error>> {
+    let message: Message = command.try_into()?;
+    message.write_to_stream(stream)?;
+    Ok(())
 }
 
 pub struct LineIterator<B: BufRead>(Lines<B>);

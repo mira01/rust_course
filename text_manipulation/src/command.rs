@@ -1,43 +1,40 @@
 use crate::mutation::{Mutation, StringResult};
 
+use crate::message::Message;
 use std::error::Error;
-use std::fs;
+use std::path::Path;
 
-/// A Command to be run. It contains operation to be run and a text to act on
 #[derive(Debug)]
-pub struct Command {
-    operation: Mutation,
-    argument: String,
+pub enum Command {
+    File(Box<Path>),
+    Image(Box<Path>),
+    Text(String),
+    Quit,
 }
 
 impl TryFrom<&str> for Command {
     type Error = Box<dyn Error>;
 
     fn try_from(item: &str) -> Result<Self, Self::Error> {
-        let mut split = item.split(' ');
-        let operation_name = split.next().ok_or("could not read operation")?;
-        let operation = Mutation::try_from(operation_name)?;
-        let mut argument: String = String::new();
-        for part in split {
-            argument.push_str(part);
-            argument.push(' ');
+        if item.starts_with(".quit"){
+            Ok(Command::Quit)
+        } else if item.starts_with(".file") {
+            todo!()
+            
         }
-        Ok(Command {
-            operation,
-            argument: argument.trim().to_string(),
-        })
+        else {
+            Ok(Command::Text(item.to_string()))
+        }
     }
 }
 
-impl Command {
-    pub fn execute(self) -> StringResult {
-        let arg = match self {
-            Command {
-                operation: Mutation::Csv,
-                argument,
-            } => fs::read_to_string(argument)?,
-            Command { argument, .. } => argument,
-        };
-        self.operation.mutate(arg)
+impl TryInto<Message> for Command {
+    type Error = Box<dyn Error>;
+    
+    fn try_into(self) -> Result<Message, Self::Error> {
+        match self {
+            Command::Text(text) => Ok(Message::Text(text)),
+            _ => todo!()
+        }
     }
 }

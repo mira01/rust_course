@@ -1,5 +1,6 @@
 //! Module responsible for decission how to run the program and starting up
 mod command;
+mod message;
 mod interactive;
 mod mutation;
 
@@ -8,6 +9,7 @@ use std::env;
 use std::error::Error;
 use std::io::{self, BufWriter};
 use std::process;
+use std::net::TcpStream;
 
 #[derive(Clone, Copy)]
 enum Mode {
@@ -36,7 +38,9 @@ fn main() {
             let stdin = io::stdin();
             let stdout = BufWriter::new(io::stdout());
             let stderr = BufWriter::new(io::stderr());
-            interactive::enter_loop(stdin, stdout, stderr)?;
+            let tcp_read = TcpStream::connect("127.0.0.1:8765")?;
+            let tcp_write = tcp_read.try_clone()?;
+            interactive::enter_loop(stdin, stdout, stderr, tcp_read, tcp_write)?;
             Ok(())
         }
     });
