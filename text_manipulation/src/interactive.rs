@@ -5,6 +5,12 @@ use std::io::{BufRead, BufReader, Read, Result as IoResult, Write, Lines};
 use std::sync::mpsc;
 use std::thread;
 
+#[derive(Debug)]
+enum Event{
+    Command(crate::command::Command),
+    Message(crate::message::Message),
+}
+
 // I use a lot of unwraps inside threads. I do not know how to recover from these situations
 
 /// A function that starts threads that do reading, executing and writing results
@@ -20,8 +26,8 @@ pub fn enter_loop<
     mut stderr: W2,
     mut net_in: R2,
     mut net_out: W3
-) -> Result<(W1, W2), Box<dyn Error>> {
-    let (reader_out, processor_in) = mpsc::channel::<Command>();
+) -> Result<(), Box<dyn Error>> {
+    let (reader_out, processor_in) = mpsc::channel::<Event>();
     let (processor_out, writer_in) = mpsc::channel::<Result<String, String>>();
     let reader_err = processor_out.clone();
     let net_reader_out = reader_out.clone();
@@ -34,10 +40,11 @@ pub fn enter_loop<
             let c = get_command(line);
             match c {
                 Ok(Command::Quit) => {
+                    reader_out.send(Event::Command(Command::Quit)).unwrap();
                     return ();
                 }
                 Ok(c) => {
-                    reader_out.send(c).unwrap();
+                    reader_out.send(Event::Command(c)).unwrap();
                 }
                 Err(c) => {
                     reader_err.send(Err(c)).unwrap();
@@ -47,16 +54,25 @@ pub fn enter_loop<
     });
 
     let net_reader = thread::spawn(move || {
-        let reader = BufReader::new(net_in);
-        todo!();
+        let mut reader = BufReader::new(net_in);
+        loop {
+            let message = Message::read_from_stream(&mut reader).unwrap();
+            net_reader_out.send(Event::Message(message)).unwrap();
+        }
     });
 
     // Thread that executes the command and sends the result to writer thread
     let processor = thread::spawn(move || {
-        while let Ok(command) = processor_in.recv() {
-            match send_message(command, &mut net_out) {
-                Err(e) => processor_out.send(Err(e.to_string())),
-                Ok(_) => continue,
+        while let Ok(event) = processor_in.recv() {
+            let _  = match event {
+                Event::Message(message) => processor_out.send(handle_incoming_message(message)),
+                Event::Command(Command::Quit) => return (),
+                Event::Command(command) =>  {
+                    match send_message(command, &mut net_out) {
+                        Err(e) => processor_out.send(Err(e.to_string())),
+                        Ok(_) => continue,
+                    }
+                }
             };
         }
     });
@@ -81,13 +97,15 @@ pub fn enter_loop<
     reader
         .join()
         .map_err(|_e| "Error in reading thread".to_string())?;
+    println!("readerjoin");
     processor
         .join()
         .map_err(|_e| "Error in processing thread".to_string())?;
-    let (stdout, stderr) = writer
-        .join()
-        .map_err(|_e| "Error in writing thread".to_string())?;
-    Ok((stdout, stderr))
+    println!("processor join");
+    //let (stdout, stderr) = writer
+    //    .join()
+    //    .map_err(|_e| "Error in writing thread".to_string())?;
+    Ok(())
 }
 
 fn get_command(raw_line: IoResult<String>) -> Result<Command, String> {
@@ -99,6 +117,14 @@ fn send_message<T: Write>(command: Command, stream: &mut T) -> Result<(), Box<dy
     let message: Message = command.try_into()?;
     message.write_to_stream(stream)?;
     Ok(())
+}
+
+fn handle_incoming_message(msg: Message) -> Result<String, String> {
+    match msg {
+        Message::Text(text) => Ok(format!("> {}", text).to_string()),
+        Message::File(name, content) => Ok(format!("...downloading {}", name).to_string()),
+        Message::Image(content) => Ok("...downloading image".to_string()),
+    }
 }
 
 pub struct LineIterator<B: BufRead>(Lines<B>);
