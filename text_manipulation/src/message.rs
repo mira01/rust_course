@@ -1,7 +1,7 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json;
 use std::error::Error;
-use std::io::{Write, Read};
+use std::io::{Read, Write};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Message {
@@ -11,9 +11,8 @@ pub enum Message {
 }
 
 impl Message {
-
     pub fn serialize(&self) -> Result<Vec<u8>, Box<dyn Error>> {
-       Ok(serde_json::to_string(&self)?.as_bytes().to_vec()) 
+        Ok(serde_json::to_string(&self)?.as_bytes().to_vec())
     }
 
     pub fn write_to_stream<T: Write>(&self, stream: &mut T) -> Result<(), Box<dyn Error>> {
@@ -21,7 +20,7 @@ impl Message {
         let len = serialized.len() as u32;
         stream.write_all(&len.to_be_bytes())?;
         Ok(stream.write_all(&serialized)?)
-    } 
+    }
 
     pub fn read_from_stream<T: Read>(stream: &mut T) -> Result<Message, Box<dyn Error>> {
         let mut len_bytes = [0u8; 4];

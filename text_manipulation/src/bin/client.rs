@@ -1,7 +1,7 @@
 use std::env;
+use std::error::Error;
 use std::io::{self, BufWriter};
 use std::net::TcpStream;
-use std::error::Error;
 
 use chat::interactive;
 use chat::DEFAULT_ADDRESS;
@@ -13,9 +13,7 @@ fn main() {
 }
 
 fn run() -> Result<(), Box<dyn Error>> {
-    let host_port = env::args()
-        .nth(1)
-        .unwrap_or(DEFAULT_ADDRESS.into());
+    let host_port = env::args().nth(1).unwrap_or(DEFAULT_ADDRESS.into());
 
     let stdin = io::stdin();
     let stdout = BufWriter::new(io::stdout());

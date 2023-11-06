@@ -1,7 +1,7 @@
-use std::env;
-use std::net::{TcpStream, TcpListener, Shutdown, SocketAddr};
-use std::error::Error;
 use std::collections::HashMap;
+use std::env;
+use std::error::Error;
+use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::sync::mpsc;
 use std::thread;
 
@@ -32,9 +32,7 @@ enum Event {
 }
 
 fn run() -> Result<(), Box<dyn Error>> {
-    let host_port = env::args()
-        .nth(1)
-        .unwrap_or(DEFAULT_ADDRESS.into());
+    let host_port = env::args().nth(1).unwrap_or(DEFAULT_ADDRESS.into());
 
     let tcp = TcpListener::bind(host_port)?;
     let pool = ThreadPool::new(THREAD_COUNT);
@@ -43,23 +41,25 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     let _responder = thread::spawn(move || {
         while let Ok((msg, mut stream)) = responses_in.recv() {
-           msg.write_to_stream(&mut stream).unwrap();
+            msg.write_to_stream(&mut stream).unwrap();
         }
     });
 
     let _processor = thread::spawn(move || {
         let mut clients = HashMap::new();
-        while let Ok(data) = rx.recv(){
+        while let Ok(data) = rx.recv() {
             match data.event {
                 Event::Message(message) => {
                     clients.insert(data.address, data.stream);
                     for (address, stream) in &clients {
                         if address != &data.address {
                             println!("sending a message");
-                            responses_out.send((message.clone(), stream.try_clone().unwrap())).unwrap();
+                            responses_out
+                                .send((message.clone(), stream.try_clone().unwrap()))
+                                .unwrap();
                         }
                     }
-                },
+                }
                 Event::Disconnected => {
                     println!("a client disconected");
                     clients.remove(&data.address);
@@ -78,16 +78,16 @@ fn run() -> Result<(), Box<dyn Error>> {
                 let message = Message::read_from_stream(&mut stream);
                 match message {
                     Ok(message) => {
-                        let data = StoredData{
+                        let data = StoredData {
                             event: Event::Message(message),
                             address,
                             stream: stream.try_clone().unwrap(),
                         };
                         tx.send(data).unwrap();
-                    },
+                    }
                     Err(_) => {
                         let _ = stream.shutdown(Shutdown::Both);
-                        let data = StoredData{
+                        let data = StoredData {
                             event: Event::Disconnected,
                             address,
                             stream: stream.try_clone().unwrap(),
@@ -97,7 +97,6 @@ fn run() -> Result<(), Box<dyn Error>> {
                     }
                 }
             }
-       
         });
     }
 

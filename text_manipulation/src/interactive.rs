@@ -1,18 +1,18 @@
 use crate::command::Command;
 use crate::message::Message;
-use std::error::Error;
-use std::io::{BufRead, BufReader, Read, Result as IoResult, Write, Lines};
-use std::sync::mpsc;
-use std::thread;
 use std::env::current_dir;
+use std::error::Error;
 use std::fs;
+use std::io::{BufRead, BufReader, Lines, Read, Result as IoResult, Write};
 use std::path::PathBuf;
 use std::process;
+use std::sync::mpsc;
+use std::thread;
 
 use chrono;
 
 #[derive(Debug)]
-enum Event{
+enum Event {
     Command(crate::command::Command),
     Message(crate::message::Message),
 }
@@ -31,7 +31,7 @@ pub fn enter_loop<
     mut stdout: W1,
     mut stderr: W2,
     net_in: R2,
-    mut net_out: W3
+    mut net_out: W3,
 ) -> Result<(), Box<dyn Error>> {
     let (reader_out, processor_in) = mpsc::channel::<Event>();
     let (processor_out, writer_in) = mpsc::channel::<Result<String, String>>();
@@ -40,7 +40,7 @@ pub fn enter_loop<
     let downloader_out = processor_out.clone();
     let net_reader_out = reader_out.clone();
 
-    // Thread that reads commands from input stream. In case of succes it passes command 
+    // Thread that reads commands from input stream. In case of succes it passes command
     // to executing thread; otherwise it sends error to writer thread
     let reader = thread::spawn(move || {
         let stdin = BufReader::new(stdin);
@@ -76,15 +76,19 @@ pub fn enter_loop<
     // Thread that executes the command and sends the result to writer thread
     let processor = thread::spawn(move || {
         while let Ok(event) = processor_in.recv() {
-            let _  = match event {
+            let _ = match event {
                 Event::Message(Message::Text(text)) => {
                     let _ = processor_out.send(Ok(format!("> {}", text).to_string()));
-                },
-                Event::Message(message) => {let _ = to_download.send(message);},
+                }
+                Event::Message(message) => {
+                    let _ = to_download.send(message);
+                }
                 Event::Command(Command::Quit) => return,
-                Event::Command(command) =>  {
+                Event::Command(command) => {
                     match send_message(command, &mut net_out) {
-                        Err(e) => {let _ = processor_out.send(Err(e.to_string()));},
+                        Err(e) => {
+                            let _ = processor_out.send(Err(e.to_string()));
+                        }
                         Ok(_) => continue,
                     };
                 }
@@ -93,7 +97,7 @@ pub fn enter_loop<
     });
 
     let _downloader = thread::spawn(move || {
-       while let Ok(message) = downloader_in.recv() {
+        while let Ok(message) = downloader_in.recv() {
             match message {
                 Message::File(ref name, _) => {
                     let _ = downloader_out.send(Ok(format!("downloading {}", name).to_string()));
@@ -105,7 +109,7 @@ pub fn enter_loop<
                 }
                 _ => continue,
             }
-       };
+        }
     });
 
     // Thread that writes results to two output buffers: success buffer and error buffer
@@ -151,47 +155,46 @@ fn download(msg: Message) -> Result<String, String> {
         Message::File(name, content) => {
             store("files", name.clone(), content).map_err(|e| e.to_string())?;
             Ok(format!("> {} downloaded", name).to_string())
-        },
+        }
         Message::Image(content) => {
             let mut name = chrono::offset::Local::now().to_string();
             name.push_str(".png");
             store("images", name.clone(), content).map_err(|e| e.to_string())?;
             Ok(format!("image downloaded as {}", name).to_string())
-        },
-        _ => Err("cannot download".into())
+        }
+        _ => Err("cannot download".into()),
     }
 }
 
-fn store(directory_name: &str, file_name: String, content: Vec<u8>) -> Result<(), Box<dyn Error>>{
-   let mut path = PathBuf::new();
-   path.push(current_dir()?);
-   path.push(directory_name);
-   fs::create_dir_all(&path)?;
-   path.push(file_name);
-   Ok(fs::write(path, content)?)
+fn store(directory_name: &str, file_name: String, content: Vec<u8>) -> Result<(), Box<dyn Error>> {
+    let mut path = PathBuf::new();
+    path.push(current_dir()?);
+    path.push(directory_name);
+    fs::create_dir_all(&path)?;
+    path.push(file_name);
+    Ok(fs::write(path, content)?)
 }
 
 pub struct LineIterator<B: BufRead>(Lines<B>);
-impl<B: BufRead> Iterator for LineIterator<B>{
+impl<B: BufRead> Iterator for LineIterator<B> {
     type Item = IoResult<String>;
-    fn next(&mut self) -> Option<IoResult<String>>{
+    fn next(&mut self) -> Option<IoResult<String>> {
         let mut s = String::new();
         loop {
             let next = self.0.next();
             match next {
                 Some(Ok(line)) => {
-                    if !line.ends_with('\\'){
+                    if !line.ends_with('\\') {
                         s.push_str(&line);
                         return Some(Ok(s));
                     } else {
                         // cut tre trailing backshlash;
-                        s.push_str(line.strip_suffix('\\').unwrap());       
-                        s.push('\n');       
+                        s.push_str(line.strip_suffix('\\').unwrap());
+                        s.push('\n');
                     }
-                },
-                _ => return next
+                }
+                _ => return next,
             }
-
         }
     }
 }
