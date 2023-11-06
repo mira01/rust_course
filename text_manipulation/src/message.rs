@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use serde_json;
+use bincode;
 use std::error::Error;
 use std::io::{Read, Write};
 
@@ -12,7 +12,7 @@ pub enum Message {
 
 impl Message {
     pub fn serialize(&self) -> Result<Vec<u8>, Box<dyn Error>> {
-        Ok(serde_json::to_string(&self)?.as_bytes().to_vec())
+        Ok(bincode::serialize(&self)?.to_vec())
     }
 
     pub fn write_to_stream<T: Write>(&self, stream: &mut T) -> Result<(), Box<dyn Error>> {
@@ -38,6 +38,6 @@ impl TryFrom<&[u8]> for Message {
     type Error = Box<dyn Error>;
 
     fn try_from(data: &[u8]) -> Result<Self, Self::Error> {
-        Ok(serde_json::from_slice(data)?)
+        Ok(bincode::deserialize(data)?)
     }
 }
