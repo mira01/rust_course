@@ -3,7 +3,7 @@ use serde_json;
 use std::error::Error;
 use std::io::{Write, Read};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Message {
     Text(String),
     File(String, Vec<u8>),
