@@ -49,7 +49,7 @@ pub fn enter_loop<
             match c {
                 Ok(Command::Quit) => {
                     reader_out.send(Event::Command(Command::Quit)).unwrap();
-                    return ();
+                    return;
                 }
                 Ok(c) => {
                     reader_out.send(Event::Command(c)).unwrap();
@@ -81,7 +81,7 @@ pub fn enter_loop<
                     let _ = processor_out.send(Ok(format!("> {}", text).to_string()));
                 },
                 Event::Message(message) => {let _ = to_download.send(message);},
-                Event::Command(Command::Quit) => return (),
+                Event::Command(Command::Quit) => return,
                 Event::Command(command) =>  {
                     match send_message(command, &mut net_out) {
                         Err(e) => {let _ = processor_out.send(Err(e.to_string()));},
@@ -100,7 +100,7 @@ pub fn enter_loop<
                     let _ = downloader_out.send(download(message));
                 }
                 Message::Image(ref _content) => {
-                    let _ = downloader_out.send(Ok(format!("downloading an image").to_string()));
+                    let _ = downloader_out.send(Ok("downloading an image".to_string()));
                     let _ = downloader_out.send(download(message));
                 }
                 _ => continue,
@@ -153,8 +153,9 @@ fn download(msg: Message) -> Result<String, String> {
             Ok(format!("> {} downloaded", name).to_string())
         },
         Message::Image(content) => {
-            let name = chrono::offset::Local::now().to_string();
-            store("files", name.clone(), content).map_err(|e| e.to_string())?;
+            let mut name = chrono::offset::Local::now().to_string();
+            name.push_str(".png");
+            store("images", name.clone(), content).map_err(|e| e.to_string())?;
             Ok(format!("image downloaded as {}", name).to_string())
         },
         _ => Err("cannot download".into())

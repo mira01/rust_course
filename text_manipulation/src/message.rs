@@ -19,7 +19,7 @@ impl Message {
     pub fn write_to_stream<T: Write>(&self, stream: &mut T) -> Result<(), Box<dyn Error>> {
         let serialized = self.serialize()?;
         let len = serialized.len() as u32;
-        stream.write(&len.to_be_bytes())?;
+        stream.write_all(&len.to_be_bytes())?;
         Ok(stream.write_all(&serialized)?)
     } 
 
@@ -39,6 +39,6 @@ impl TryFrom<&[u8]> for Message {
     type Error = Box<dyn Error>;
 
     fn try_from(data: &[u8]) -> Result<Self, Self::Error> {
-        Ok(serde_json::from_slice(&data)?)
+        Ok(serde_json::from_slice(data)?)
     }
 }

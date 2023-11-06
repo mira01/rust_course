@@ -58,8 +58,7 @@ fn file_data(path: &Path) -> Result<(String, Vec<u8>), Box<dyn Error>> {
         .last()
         .map(|component| {
             let os_str: OsString = component.as_os_str().into();
-            let string = os_str.into_string().unwrap();
-            string
+            os_str.into_string().unwrap()
             })
         .ok_or("weird path".to_string())?;
     let mut data = Vec::new();

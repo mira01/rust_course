@@ -7,17 +7,15 @@ use chat::interactive;
 use chat::DEFAULT_ADDRESS;
 
 fn main() {
-    match run() {
-        Err(e) => eprintln!("{}", e.to_string()),
-        Ok(_) => (),
+    if let Err(e) = run() {
+        eprintln!("{}", e);
     }
 }
 
 fn run() -> Result<(), Box<dyn Error>> {
     let host_port = env::args()
         .nth(1)
-        .or(Some(DEFAULT_ADDRESS.into()))
-        .unwrap();
+        .unwrap_or(DEFAULT_ADDRESS.into());
 
     let stdin = io::stdin();
     let stdout = BufWriter::new(io::stdout());

@@ -13,9 +13,8 @@ use chat::DEFAULT_ADDRESS;
 const THREAD_COUNT: usize = 8;
 
 fn main() {
-    match run() {
-        Err(e) => eprintln!("{}", e.to_string()),
-        Ok(_) => (),
+    if let Err(e) = run() {
+        eprintln!("{}", e);
     }
 }
 
@@ -35,8 +34,7 @@ enum Event {
 fn run() -> Result<(), Box<dyn Error>> {
     let host_port = env::args()
         .nth(1)
-        .or(Some(DEFAULT_ADDRESS.into()))
-        .unwrap(); // always Some
+        .unwrap_or(DEFAULT_ADDRESS.into());
 
     let tcp = TcpListener::bind(host_port)?;
     let pool = ThreadPool::new(THREAD_COUNT);
@@ -54,7 +52,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         while let Ok(data) = rx.recv(){
             match data.event {
                 Event::Message(message) => {
-                    clients.insert(data.address.clone(), data.stream);
+                    clients.insert(data.address, data.stream);
                     for (address, stream) in &clients {
                         if address != &data.address {
                             println!("sending a message");
