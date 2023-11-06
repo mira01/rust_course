@@ -4,6 +4,11 @@ use std::error::Error;
 use std::io::{BufRead, BufReader, Read, Result as IoResult, Write, Lines};
 use std::sync::mpsc;
 use std::thread;
+use std::env::current_dir;
+use std::fs;
+use std::path::PathBuf;
+
+use chrono;
 
 #[derive(Debug)]
 enum Event{
@@ -29,7 +34,9 @@ pub fn enter_loop<
 ) -> Result<(), Box<dyn Error>> {
     let (reader_out, processor_in) = mpsc::channel::<Event>();
     let (processor_out, writer_in) = mpsc::channel::<Result<String, String>>();
+    let (to_download, downloader_in) = mpsc::channel::<Message>();
     let reader_err = processor_out.clone();
+    let downloader_out = processor_out.clone();
     let net_reader_out = reader_out.clone();
 
     // Thread that reads commands from input stream. In case of succes it passes command 
@@ -65,16 +72,35 @@ pub fn enter_loop<
     let processor = thread::spawn(move || {
         while let Ok(event) = processor_in.recv() {
             let _  = match event {
-                Event::Message(message) => processor_out.send(handle_incoming_message(message)),
+                Event::Message(Message::Text(text)) => {
+                    processor_out.send(Ok(format!("> {}", text).to_string()));
+                },
+                Event::Message(message) => {to_download.send(message);},
                 Event::Command(Command::Quit) => return (),
                 Event::Command(command) =>  {
                     match send_message(command, &mut net_out) {
                         Err(e) => processor_out.send(Err(e.to_string())),
                         Ok(_) => continue,
-                    }
+                    };
                 }
             };
         }
+    });
+
+    let downloader = thread::spawn(move || {
+       while let Ok(message) = downloader_in.recv() {
+            match message {
+                Message::File(ref name, ref content) => {
+                    downloader_out.send(Ok(format!("downloading {}", name).to_string()));
+                    downloader_out.send(download(message));
+                }
+                Message::File(ref name, ref content) => {
+                    downloader_out.send(Ok(format!("downloading an image").to_string()));
+                    downloader_out.send(download(message));
+                }
+                _ => continue,
+            }
+       };
     });
 
     // Thread that writes results to two output buffers: success buffer and error buffer
@@ -119,12 +145,28 @@ fn send_message<T: Write>(command: Command, stream: &mut T) -> Result<(), Box<dy
     Ok(())
 }
 
-fn handle_incoming_message(msg: Message) -> Result<String, String> {
+fn download(msg: Message) -> Result<String, String> {
     match msg {
-        Message::Text(text) => Ok(format!("> {}", text).to_string()),
-        Message::File(name, content) => Ok(format!("...downloading {}", name).to_string()),
-        Message::Image(content) => Ok("...downloading image".to_string()),
+        Message::File(name, content) => {
+            store("files", name.clone(), content).map_err(|e| e.to_string())?;
+            Ok(format!("> {} downloaded", name).to_string())
+        },
+        Message::Image(content) => {
+            let name = chrono::offset::Local::now().to_string();
+            store("files", name.clone(), content).map_err(|e| e.to_string())?;
+            Ok(format!("image downloaded as {}", name).to_string())
+        },
+        _ => Err("cannot download".into())
     }
+}
+
+fn store(directory_name: &str, file_name: String, content: Vec<u8>) -> Result<(), Box<dyn Error>>{
+   let mut path = PathBuf::new();
+   path.push(current_dir()?);
+   path.push(directory_name);
+   fs::create_dir_all(&path)?;
+   path.push(file_name);
+   Ok(fs::write(path, content)?)
 }
 
 pub struct LineIterator<B: BufRead>(Lines<B>);
@@ -149,54 +191,5 @@ impl<B: BufRead> Iterator for LineIterator<B>{
             }
 
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::enter_loop;
-    use std::io::Cursor;
-
-    fn test_streams(input: String, expected_out: &'static str, expected_err: &'static str) {
-        let (stdout, stderr) = (vec![], vec![]);
-        let stdin = String::into_bytes(input);
-        let (stdout, stderr) = enter_loop(Cursor::new(stdin), stdout, stderr).unwrap();
-        let stdout = std::str::from_utf8(&stdout).unwrap();
-        let stderr = std::str::from_utf8(&stderr).unwrap();
-        assert_eq!(expected_out, stdout);
-        assert_eq!(expected_err, stderr);
-    }
-
-    #[test]
-    fn uppercase_works() {
-        test_streams("uppercase vole padni".to_string(), "VOLE PADNI\n", "")
-    }
-
-    #[test]
-    fn unknown_method_works() {
-        test_streams(
-            "blabla vole padni".to_string(),
-            "",
-            "\u{1b}[0;31mUnknown method blabla\u{1b}[0m\n",
-        )
-    }
-
-    #[test]
-    fn multiline_works() {
-        test_streams("uppercase vole padni\\\nvoko bere".to_string(), "VOLE PADNI\nVOKO BERE\n", "")
-    }
-
-    #[test]
-    fn longer_session_works() {
-        let input = "lowercase Lorem ipsum DOLOR sIT AmeT\n\
-                     no-spaces Lorem ipsum DOLOR sIT AmeT\n\
-                     blabla Lorem ipsum DOLOR sIT AmeT\n\
-                     camel-case Lorem ipsum DOLOR sIT AmeT\n"
-            .to_string();
-        let output = "lorem ipsum dolor sit amet\n\
-                      LoremipsumDOLORsITAmeT\n\
-                      LoremIpsumDolorSitAmet\n";
-        let error = "\u{1b}[0;31mUnknown method blabla\u{1b}[0m\n";
-        test_streams(input, output, error);
     }
 }

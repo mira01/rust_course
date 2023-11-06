@@ -48,7 +48,7 @@ impl TryInto<Message> for Command {
                 let (_name, content) = file_data(&path)?;
                 Ok(Message::Image(content))
             },
-            Command::Quit() => Err("Quit is not sendable command".into()),
+            Command::Quit => Err("Quit is not sendable command".into()),
         }
     }
 }
