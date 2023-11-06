@@ -28,6 +28,7 @@ struct StoredData {
 #[derive(Debug)]
 enum Event {
     Message(Message),
+    Connected,
     Disconnected,
 }
 
@@ -46,11 +47,10 @@ fn run() -> Result<(), Box<dyn Error>> {
     });
 
     let _processor = thread::spawn(move || {
-        let mut clients = HashMap::new();
+        let mut clients: HashMap<SocketAddr, TcpStream> = HashMap::new();
         while let Ok(data) = rx.recv() {
             match data.event {
                 Event::Message(message) => {
-                    clients.insert(data.address, data.stream);
                     for (address, stream) in &clients {
                         if address != &data.address {
                             println!("sending a message");
@@ -64,6 +64,10 @@ fn run() -> Result<(), Box<dyn Error>> {
                     println!("a client disconected");
                     clients.remove(&data.address);
                 }
+                Event::Connected => {
+                    println!("a client conected");
+                    clients.insert(data.address, data.stream);
+                }
             }
         }
     });
@@ -74,6 +78,14 @@ fn run() -> Result<(), Box<dyn Error>> {
             let mut stream = stream.unwrap();
             let address = stream.peer_addr().unwrap();
             let tx = tx.clone();
+
+            let data = StoredData {
+                event: Event::Connected,
+                address,
+                stream: stream.try_clone().unwrap(),
+            };
+
+            tx.send(data).unwrap();
             loop {
                 let message = Message::read_from_stream(&mut stream);
                 match message {

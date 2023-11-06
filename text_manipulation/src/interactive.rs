@@ -3,13 +3,14 @@ use crate::message::Message;
 use std::env::current_dir;
 use std::error::Error;
 use std::fs;
-use std::io::{BufRead, BufReader, Lines, Read, Result as IoResult, Write};
+use std::io::{BufRead, BufReader, Lines, Read, Result as IoResult, Write, Cursor};
 use std::path::PathBuf;
 use std::process;
 use std::sync::mpsc;
 use std::thread;
 
 use chrono;
+use image::{io::Reader as ImageReader, ImageOutputFormat};
 
 #[derive(Debug)]
 enum Event {
@@ -76,7 +77,7 @@ pub fn enter_loop<
     // Thread that executes the command and sends the result to writer thread
     let processor = thread::spawn(move || {
         while let Ok(event) = processor_in.recv() {
-            let _ = match event {
+            match event {
                 Event::Message(Message::Text(text)) => {
                     let _ = processor_out.send(Ok(format!("> {}", text).to_string()));
                 }
@@ -159,11 +160,24 @@ fn download(msg: Message) -> Result<String, String> {
         Message::Image(content) => {
             let mut name = chrono::offset::Local::now().to_string();
             name.push_str(".png");
-            store("images", name.clone(), content).map_err(|e| e.to_string())?;
+            let converted = {
+                let mut buf: Vec<u8> = Vec::new();
+                let _ = convert(content, &mut buf).map_err(|e| e.to_string());
+                buf
+            };
+            store("images", name.clone(), converted).map_err(|e| e.to_string())?;
             Ok(format!("image downloaded as {}", name).to_string())
         }
         _ => Err("cannot download".into()),
     }
+}
+
+fn convert(orig_buf: Vec<u8>, output_buf: &mut Vec<u8>) -> Result<(), Box<dyn Error>> {
+    let img = ImageReader::new(Cursor::new(orig_buf))
+        .with_guessed_format()?
+        .decode()?;
+    img.write_to(&mut Cursor::new(output_buf), ImageOutputFormat::Png)?;
+    Ok(())
 }
 
 fn store(directory_name: &str, file_name: String, content: Vec<u8>) -> Result<(), Box<dyn Error>> {
