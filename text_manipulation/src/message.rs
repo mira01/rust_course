@@ -18,7 +18,6 @@ impl Message {
 
     pub fn write_to_stream<T: Write>(&self, stream: &mut T) -> Result<(), Box<dyn Error>> {
         let serialized = self.serialize()?;
-        println!("sending {:?}", serialized);
         let len = serialized.len() as u32;
         stream.write(&len.to_be_bytes())?;
         Ok(stream.write_all(&serialized)?)

@@ -7,6 +7,7 @@ use std::thread;
 use std::env::current_dir;
 use std::fs;
 use std::path::PathBuf;
+use std::process;
 
 use chrono;
 
@@ -29,7 +30,7 @@ pub fn enter_loop<
     stdin: R1,
     mut stdout: W1,
     mut stderr: W2,
-    mut net_in: R2,
+    net_in: R2,
     mut net_out: W3
 ) -> Result<(), Box<dyn Error>> {
     let (reader_out, processor_in) = mpsc::channel::<Event>();
@@ -60,11 +61,15 @@ pub fn enter_loop<
         }
     });
 
-    let net_reader = thread::spawn(move || {
+    let _net_reader = thread::spawn(move || {
         let mut reader = BufReader::new(net_in);
         loop {
-            let message = Message::read_from_stream(&mut reader).unwrap();
-            net_reader_out.send(Event::Message(message)).unwrap();
+            if let Ok(message) = Message::read_from_stream(&mut reader) {
+                net_reader_out.send(Event::Message(message)).unwrap();
+            } else {
+                // Reconnection not yet implemented
+                process::exit(1);
+            }
         }
     });
 
@@ -73,13 +78,13 @@ pub fn enter_loop<
         while let Ok(event) = processor_in.recv() {
             let _  = match event {
                 Event::Message(Message::Text(text)) => {
-                    processor_out.send(Ok(format!("> {}", text).to_string()));
+                    let _ = processor_out.send(Ok(format!("> {}", text).to_string()));
                 },
-                Event::Message(message) => {to_download.send(message);},
+                Event::Message(message) => {let _ = to_download.send(message);},
                 Event::Command(Command::Quit) => return (),
                 Event::Command(command) =>  {
                     match send_message(command, &mut net_out) {
-                        Err(e) => processor_out.send(Err(e.to_string())),
+                        Err(e) => {let _ = processor_out.send(Err(e.to_string()));},
                         Ok(_) => continue,
                     };
                 }
@@ -87,16 +92,16 @@ pub fn enter_loop<
         }
     });
 
-    let downloader = thread::spawn(move || {
+    let _downloader = thread::spawn(move || {
        while let Ok(message) = downloader_in.recv() {
             match message {
-                Message::File(ref name, ref content) => {
-                    downloader_out.send(Ok(format!("downloading {}", name).to_string()));
-                    downloader_out.send(download(message));
+                Message::File(ref name, _) => {
+                    let _ = downloader_out.send(Ok(format!("downloading {}", name).to_string()));
+                    let _ = downloader_out.send(download(message));
                 }
-                Message::File(ref name, ref content) => {
-                    downloader_out.send(Ok(format!("downloading an image").to_string()));
-                    downloader_out.send(download(message));
+                Message::Image(ref _content) => {
+                    let _ = downloader_out.send(Ok(format!("downloading an image").to_string()));
+                    let _ = downloader_out.send(download(message));
                 }
                 _ => continue,
             }
@@ -104,7 +109,7 @@ pub fn enter_loop<
     });
 
     // Thread that writes results to two output buffers: success buffer and error buffer
-    let writer = thread::spawn(move || {
+    let _writer = thread::spawn(move || {
         while let Ok(text) = writer_in.recv() {
             match text {
                 Ok(out) => {
@@ -123,14 +128,10 @@ pub fn enter_loop<
     reader
         .join()
         .map_err(|_e| "Error in reading thread".to_string())?;
-    println!("readerjoin");
     processor
         .join()
         .map_err(|_e| "Error in processing thread".to_string())?;
-    println!("processor join");
-    //let (stdout, stderr) = writer
-    //    .join()
-    //    .map_err(|_e| "Error in writing thread".to_string())?;
+    // no need to wait for other threads
     Ok(())
 }
 
