@@ -1,6 +1,9 @@
 use crate::message::Message;
 use std::error::Error;
 use std::path::Path;
+use std::fs::File;
+use std::io::{Read, BufReader};
+use std::ffi::OsString;
 
 #[derive(Debug)]
 pub enum Command {
@@ -17,8 +20,13 @@ impl TryFrom<&str> for Command {
         if item.starts_with(".quit"){
             Ok(Command::Quit)
         } else if item.starts_with(".file") {
-            todo!()
-            
+            let path = item.strip_prefix(".file").unwrap();
+            let path = Path::new(path.trim());
+            Ok(Command::File(path.into()))
+        } else if item.starts_with(".image") {
+            let path = item.strip_prefix(".image").unwrap();
+            let path = Path::new(path.trim());
+            Ok(Command::Image(path.into()))
         }
         else {
             Ok(Command::Text(item.to_string()))
@@ -32,7 +40,30 @@ impl TryInto<Message> for Command {
     fn try_into(self) -> Result<Message, Self::Error> {
         match self {
             Command::Text(text) => Ok(Message::Text(text)),
-            _ => todo!()
+            Command::File(path) =>  {
+                let (name, content) = file_data(&path)?;
+                Ok(Message::File(name, content))
+            },
+            Command::Image(path) =>  {
+                let (_name, content) = file_data(&path)?;
+                Ok(Message::Image(content))
+            },
+            Command::Quit() => Err("Quit is not sendable command".into()),
         }
     }
+}
+
+fn file_data(path: &Path) -> Result<(String, Vec<u8>), Box<dyn Error>> {
+    let name = path.components()
+        .last()
+        .map(|component| {
+            let os_str: OsString = component.as_os_str().into();
+            let string = os_str.into_string().unwrap();
+            string
+            })
+        .ok_or("weird path".to_string())?;
+    let mut data = Vec::new();
+    let file = File::open(path)?;
+    BufReader::new(file).read_to_end(&mut data)?;
+    Ok((name, data))
 }
