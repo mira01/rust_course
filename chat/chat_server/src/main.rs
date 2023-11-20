@@ -1,3 +1,5 @@
+/// Application for keeping connection from clients and brodcasting received messages.
+
 use std::collections::HashMap;
 use std::env;
 use std::error::Error;
@@ -24,6 +26,8 @@ fn main() {
     }
 }
 
+/// Structure that encapsulates client identification, stream and an event that happened
+/// to the client. This structure is sent between threads. 
 #[derive(Debug)]
 struct StoredData {
     address: SocketAddr,
@@ -31,6 +35,7 @@ struct StoredData {
     event: Event,
 }
 
+/// Type of event that happened to a client.
 #[derive(Debug)]
 enum Event {
     Message(Message),
@@ -38,6 +43,7 @@ enum Event {
     Disconnected,
 }
 
+/// All logic happens here:
 fn run() -> Result<(), Box<dyn Error>> {
     let host_port = env::args().nth(1).unwrap_or(DEFAULT_ADDRESS.into());
 
@@ -46,19 +52,21 @@ fn run() -> Result<(), Box<dyn Error>> {
     let (tx, rx) = mpsc::channel::<StoredData>();
     let (responses_out, responses_in) = mpsc::channel::<(Message, TcpStream)>();
 
+    // Thread that writes messages to clients' streams
     let _responder = thread::spawn(move || {
         while let Ok((msg, mut stream)) = responses_in.recv() {
             msg.write_to_stream(&mut stream).unwrap();
         }
     });
 
+    // Thread that keeps clients' connections and acts on incoming messages
     let _processor = thread::spawn(move || {
         let mut clients: HashMap<SocketAddr, TcpStream> = HashMap::new();
         while let Ok(data) = rx.recv() {
             match data.event {
                 Event::Message(message) => {
                     for (address, stream) in &clients {
-                        if address != &data.address {
+                        if address != &data.address {  // do not send to the author
                             info!("sending a message");
                             responses_out
                                 .send((message.clone(), stream.try_clone().unwrap()))
@@ -78,6 +86,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         }
     });
 
+    // Read data from tcp and handle them in thread pool
     for stream in tcp.incoming() {
         let tx = tx.clone();
         pool.execute(move || {
