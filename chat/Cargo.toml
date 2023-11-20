@@ -1,7 +1,9 @@
 [workspace]
 
 members = [
-  "chat_client"
-  , "chat_lib"
-  , "chat_server"
+    "chat_lib"
+    , "chat_client"
+    , "chat_server"
 ]
+
+resolver = "2"
