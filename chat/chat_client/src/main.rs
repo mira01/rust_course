@@ -3,12 +3,19 @@ use std::error::Error;
 use std::io::{self, BufWriter};
 use std::net::TcpStream;
 
+use log::{Level, error};
+use stderrlog;
+
 use chat_client::interactive;
-use chat_lib::DEFAULT_ADDRESS;
+const DEFAULT_ADDRESS: &str = "127.0.0.1:11111";
 
 fn main() {
+    stderrlog::new()
+        .verbosity(Level::Error)
+        .init()
+        .unwrap();
     if let Err(e) = run() {
-        eprintln!("{}", e);
+        error!("{}", e);
     }
 }
 

@@ -9,3 +9,5 @@ edition = "2021"
 chrono = "0.4.31"
 image = "0.24.7"
 chat_lib = { path = "../chat_lib" }
+log = "0.4.20"
+stderrlog = "0.5.4"

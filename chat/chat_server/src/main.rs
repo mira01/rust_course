@@ -6,15 +6,21 @@ use std::sync::mpsc;
 use std::thread;
 
 use threadpool::ThreadPool;
+use log::{Level, info, error};
+use stderrlog;
 
 use chat_lib::message::Message;
-use chat_lib::DEFAULT_ADDRESS;
 
+const DEFAULT_ADDRESS: &str = "127.0.0.1:11111";
 const THREAD_COUNT: usize = 8;
 
 fn main() {
+    stderrlog::new()
+        .verbosity(Level::Info)
+        .init()
+        .unwrap();
     if let Err(e) = run() {
-        eprintln!("{}", e);
+        error!("{}", e);
     }
 }
 
@@ -53,7 +59,7 @@ fn run() -> Result<(), Box<dyn Error>> {
                 Event::Message(message) => {
                     for (address, stream) in &clients {
                         if address != &data.address {
-                            println!("sending a message");
+                            info!("sending a message");
                             responses_out
                                 .send((message.clone(), stream.try_clone().unwrap()))
                                 .unwrap();
@@ -61,11 +67,11 @@ fn run() -> Result<(), Box<dyn Error>> {
                     }
                 }
                 Event::Disconnected => {
-                    println!("a client disconected");
+                    info!("a client disconected");
                     clients.remove(&data.address);
                 }
                 Event::Connected => {
-                    println!("a client conected");
+                    info!("a client conected");
                     clients.insert(data.address, data.stream);
                 }
             }

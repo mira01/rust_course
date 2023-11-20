@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 threadpool = "1.8.1"
 chat_lib = { path = "../chat_lib" }
+log = "0.4.20"
+stderrlog = "0.5.4"
