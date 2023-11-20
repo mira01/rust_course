@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
 
+/// Commands that can be typed in applicaiton
 #[derive(Debug)]
 pub enum Command {
     File(Box<Path>),
@@ -52,6 +53,7 @@ impl TryInto<Message> for Command {
     }
 }
 
+/// Read data from filepath and return (file_name, content)
 fn file_data(path: &Path) -> Result<(String, Vec<u8>), Box<dyn Error>> {
     let name = path
         .components()

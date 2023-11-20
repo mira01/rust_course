@@ -13,6 +13,7 @@ use image::{io::Reader as ImageReader, ImageOutputFormat};
 use crate::command::Command;
 use chat_lib::message::Message;
 
+/// An event to be handled; Either incoming message or a command typed by user
 #[derive(Debug)]
 enum Event {
     Command(Command),
@@ -63,6 +64,7 @@ pub fn enter_loop<
         }
     });
 
+    // Thread that read from Tcp
     let _net_reader = thread::spawn(move || {
         let mut reader = BufReader::new(net_in);
         loop {
@@ -76,6 +78,7 @@ pub fn enter_loop<
     });
 
     // Thread that executes the command and sends the result to writer thread
+    // or reads incoming message
     let processor = thread::spawn(move || {
         while let Ok(event) = processor_in.recv() {
             match event {
@@ -98,6 +101,7 @@ pub fn enter_loop<
         }
     });
 
+    // Thread for downloading
     let _downloader = thread::spawn(move || {
         while let Ok(message) = downloader_in.recv() {
             match message {
@@ -141,17 +145,20 @@ pub fn enter_loop<
     Ok(())
 }
 
+/// Reads a Command
 fn get_command(raw_line: IoResult<String>) -> Result<Command, String> {
     let line = raw_line.map_err(|e| e.to_string())?;
     Command::try_from(&line as &str).map_err(|e| e.to_string())
 }
 
+/// Given a Command and a Stream, tries to compose a message and write it to the stream
 fn send_message<T: Write>(command: Command, stream: &mut T) -> Result<(), Box<dyn Error>> {
     let message: Message = command.try_into()?;
     message.write_to_stream(stream)?;
     Ok(())
 }
 
+/// Given an incoming file or image message, stores its content as a file
 fn download(msg: Message) -> Result<String, String> {
     match msg {
         Message::File(name, content) => {
@@ -173,6 +180,7 @@ fn download(msg: Message) -> Result<String, String> {
     }
 }
 
+/// Convert image buffer into png image buffer
 fn convert(orig_buf: Vec<u8>, output_buf: &mut Vec<u8>) -> Result<(), Box<dyn Error>> {
     let img = ImageReader::new(Cursor::new(orig_buf))
         .with_guessed_format()?
@@ -181,6 +189,8 @@ fn convert(orig_buf: Vec<u8>, output_buf: &mut Vec<u8>) -> Result<(), Box<dyn Er
     Ok(())
 }
 
+/// Given directory_name, file_name and content prepares directory structure and strore content as
+/// a file.
 fn store(directory_name: &str, file_name: String, content: Vec<u8>) -> Result<(), Box<dyn Error>> {
     let mut path = PathBuf::new();
     path.push(current_dir()?);
