@@ -3,8 +3,8 @@ use std::error::Error;
 use std::io::{self, BufWriter};
 use std::net::TcpStream;
 
-use chat::interactive;
-use chat::DEFAULT_ADDRESS;
+use chat_client::interactive;
+use chat_lib::DEFAULT_ADDRESS;
 
 fn main() {
     if let Err(e) = run() {

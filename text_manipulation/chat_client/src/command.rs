@@ -1,4 +1,4 @@
-use crate::message::Message;
+use chat_lib::message::Message;
 use std::error::Error;
 use std::ffi::OsString;
 use std::fs::File;

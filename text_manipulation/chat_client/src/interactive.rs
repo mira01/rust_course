@@ -1,5 +1,3 @@
-use crate::command::Command;
-use crate::message::Message;
 use std::env::current_dir;
 use std::error::Error;
 use std::fs;
@@ -12,10 +10,13 @@ use std::thread;
 use chrono;
 use image::{io::Reader as ImageReader, ImageOutputFormat};
 
+use crate::command::Command;
+use chat_lib::message::Message;
+
 #[derive(Debug)]
 enum Event {
-    Command(crate::command::Command),
-    Message(crate::message::Message),
+    Command(Command),
+    Message(Message),
 }
 
 // I use a lot of unwraps inside threads. I do not know how to recover from these situations

@@ -7,8 +7,8 @@ use std::thread;
 
 use threadpool::ThreadPool;
 
-use chat::message::Message;
-use chat::DEFAULT_ADDRESS;
+use chat_lib::message::Message;
+use chat_lib::DEFAULT_ADDRESS;
 
 const THREAD_COUNT: usize = 8;
 
