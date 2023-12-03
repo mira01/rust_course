@@ -10,3 +10,4 @@ threadpool = "1.8.1"
 chat_lib = { path = "../chat_lib" }
 log = "0.4.20"
 stderrlog = "0.5.4"
+anyhow = { version = "1.0.75", features = ["backtrace"] }
