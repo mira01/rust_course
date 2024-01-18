@@ -8,8 +8,7 @@ use std::thread::{self, JoinHandle};
 
 use threadpool::ThreadPool;
 use log::{Level, info, error, warn};
-use stderrlog;
-use anyhow::{Result, Context, Error, bail};
+use anyhow::{Result, Error, Context};
 
 use chat_lib::message::{Message, ChatLibError};
 
@@ -96,44 +95,6 @@ fn run() -> Result<()> {
         Ok(())
     });
 
-    /// Function for acting upon incoming message
-    fn handle_stream(stream: std::io::Result<TcpStream>, tx: mpsc::Sender<StoredData>) -> Result<()> {
-        let mut stream = stream.context("Cannot read from data stream")?;
-        let address = stream.peer_addr().context("Cannot get peer addres")?;
-        let tx = tx.clone();
-
-        let data = StoredData {
-            event: Event::Connected,
-            address,
-            stream: stream.try_clone()?,
-        };
-
-        tx.send(data)?;
-        loop {
-            let message = Message::read_from_stream(&mut stream);
-            let event_type = match message {
-                Ok(message) => Event::Message(message),
-                Err(e @ ChatLibError::ComposeError) => Event::ClientError(e.into()),
-                Err(_) => Event::Disconnected,
-            };
-            let mut should_exit = false;
-            if let Event::Disconnected = event_type {
-                should_exit = true;
-            }
-            let data = StoredData {
-                event: event_type,
-                address,
-                stream: stream.try_clone()?,
-            };
-            tx.send(data)?;
-            if should_exit {
-                let _ = stream.shutdown(Shutdown::Both);
-                break Ok(());
-            }
-        }
-    }
-
-
     // Read data from tcp and handle them in thread pool
     for stream in tcp.incoming() {
         let tx2 = tx.clone();
@@ -145,4 +106,41 @@ fn run() -> Result<()> {
         } );
     }
     Ok(())
+}
+
+/// Function for acting upon incoming message
+fn handle_stream(stream: std::io::Result<TcpStream>, tx: mpsc::Sender<StoredData>) -> Result<()> {
+    let mut stream = stream.context("Cannot read from data stream")?;
+    let address = stream.peer_addr().context("Cannot get peer addres")?;
+    let tx = tx.clone();
+
+    let data = StoredData {
+        event: Event::Connected,
+        address,
+        stream: stream.try_clone()?,
+    };
+
+    tx.send(data)?;
+    loop {
+        let message = Message::read_from_stream(&mut stream);
+        let event_type = match message {
+            Ok(message) => Event::Message(message),
+            Err(e @ ChatLibError::ComposeError) => Event::ClientError(e.into()),
+            Err(_) => Event::Disconnected,
+        };
+        let mut should_exit = false;
+        if let Event::Disconnected = event_type {
+            should_exit = true;
+        }
+        let data = StoredData {
+            event: event_type,
+            address,
+            stream: stream.try_clone()?,
+        };
+        tx.send(data)?;
+        if should_exit {
+            let _ = stream.shutdown(Shutdown::Both);
+            break Ok(());
+        }
+    }
 }

@@ -1,9 +1,9 @@
 use chat_lib::message::Message;
-use std::error::Error;
 use std::ffi::OsString;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
+use anyhow::{Result, Context, Error, bail};
 
 /// Commands that can be typed in applicaiton
 #[derive(Debug)]
@@ -15,7 +15,7 @@ pub enum Command {
 }
 
 impl TryFrom<&str> for Command {
-    type Error = Box<dyn Error>;
+    type Error = Error;
 
     fn try_from(item: &str) -> Result<Self, Self::Error> {
         if item.starts_with(".quit") {
@@ -35,7 +35,7 @@ impl TryFrom<&str> for Command {
 }
 
 impl TryInto<Message> for Command {
-    type Error = Box<dyn Error>;
+    type Error = Error;
 
     fn try_into(self) -> Result<Message, Self::Error> {
         match self {
@@ -48,21 +48,20 @@ impl TryInto<Message> for Command {
                 let (_name, content) = file_data(&path)?;
                 Ok(Message::Image(content))
             }
-            Command::Quit => Err("Quit is not sendable command".into()),
+            Command::Quit => bail!("Quit is not sendable command"),
         }
     }
 }
 
 /// Read data from filepath and return (file_name, content)
-fn file_data(path: &Path) -> Result<(String, Vec<u8>), Box<dyn Error>> {
+fn file_data(path: &Path) -> Result<(String, Vec<u8>), Error> {
     let name = path
         .components()
         .last()
         .map(|component| {
             let os_str: OsString = component.as_os_str().into();
             os_str.into_string().unwrap()
-        })
-        .ok_or("weird path".to_string())?;
+        }).context("weird path")?;
     let mut data = Vec::new();
     let file = File::open(path)?;
     BufReader::new(file).read_to_end(&mut data)?;

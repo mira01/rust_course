@@ -1,5 +1,4 @@
 use std::env::current_dir;
-use std::error::Error;
 use std::fs;
 use std::io::{BufRead, BufReader, Lines, Read, Result as IoResult, Write, Cursor};
 use std::path::PathBuf;
@@ -9,6 +8,7 @@ use std::thread;
 
 use chrono;
 use image::{io::Reader as ImageReader, ImageOutputFormat};
+use anyhow::{Result, Error, anyhow};
 
 use crate::command::Command;
 use chat_lib::message::Message;
@@ -35,7 +35,7 @@ pub fn enter_loop<
     mut stderr: W2,
     net_in: R2,
     mut net_out: W3,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     let (reader_out, processor_in) = mpsc::channel::<Event>();
     let (processor_out, writer_in) = mpsc::channel::<Result<String, String>>();
     let (to_download, downloader_in) = mpsc::channel::<Message>();
@@ -137,10 +137,10 @@ pub fn enter_loop<
 
     reader
         .join()
-        .map_err(|_e| "Error in reading thread".to_string())?;
+        .map_err(|_e| anyhow!("Error in reading thread".to_string()))?;
     processor
         .join()
-        .map_err(|_e| "Error in processing thread".to_string())?;
+        .map_err(|_e| anyhow!("Error in processing thread".to_string()))?;
     // no need to wait for other threads
     Ok(())
 }
@@ -152,7 +152,7 @@ fn get_command(raw_line: IoResult<String>) -> Result<Command, String> {
 }
 
 /// Given a Command and a Stream, tries to compose a message and write it to the stream
-fn send_message<T: Write>(command: Command, stream: &mut T) -> Result<(), Box<dyn Error>> {
+fn send_message<T: Write>(command: Command, stream: &mut T) -> Result<(), Error> {
     let message: Message = command.try_into()?;
     message.write_to_stream(stream)?;
     Ok(())
@@ -181,7 +181,7 @@ fn download(msg: Message) -> Result<String, String> {
 }
 
 /// Convert image buffer into png image buffer
-fn convert(orig_buf: Vec<u8>, output_buf: &mut Vec<u8>) -> Result<(), Box<dyn Error>> {
+fn convert(orig_buf: Vec<u8>, output_buf: &mut Vec<u8>) -> Result<(), Error> {
     let img = ImageReader::new(Cursor::new(orig_buf))
         .with_guessed_format()?
         .decode()?;
@@ -191,7 +191,7 @@ fn convert(orig_buf: Vec<u8>, output_buf: &mut Vec<u8>) -> Result<(), Box<dyn Er
 
 /// Given directory_name, file_name and content prepares directory structure and strore content as
 /// a file.
-fn store(directory_name: &str, file_name: String, content: Vec<u8>) -> Result<(), Box<dyn Error>> {
+fn store(directory_name: &str, file_name: String, content: Vec<u8>) -> Result<(), Error> {
     let mut path = PathBuf::new();
     path.push(current_dir()?);
     path.push(directory_name);

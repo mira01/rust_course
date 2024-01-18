@@ -40,8 +40,8 @@ impl Message {
         let len = serialized.len() as u32;
         stream.write_all(&len.to_be_bytes())
             .map_err(|_e| ChatLibError::SendError )?;
-        Ok(stream.write_all(&serialized)
-           .map_err(|_e| ChatLibError::SendError)?)
+        stream.write_all(&serialized)
+           .map_err(|_e| ChatLibError::SendError)
     }
 
     /// Method for obtaining a message from *Read*able (File, Nework, ...)
@@ -67,8 +67,7 @@ impl TryFrom<&[u8]> for Message {
         if data == &vec![0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 99, 117, 115]{
             return Err(ChatLibError::ComposeError);
         }
-        Ok(bincode::deserialize(data)
-           .map_err(|_e| ChatLibError::ComposeError)?
-          )
+        bincode::deserialize(data)
+           .map_err(|_e| ChatLibError::ComposeError)
     }
 }

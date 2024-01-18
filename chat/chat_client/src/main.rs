@@ -1,10 +1,9 @@
 use std::env;
-use std::error::Error;
 use std::io::{self, BufWriter};
 use std::net::TcpStream;
 
 use log::{Level, error};
-use stderrlog;
+use anyhow::{Result,Error};
 
 use chat_client::interactive;
 const DEFAULT_ADDRESS: &str = "127.0.0.1:11111";
@@ -19,7 +18,7 @@ fn main() {
     }
 }
 
-fn run() -> Result<(), Box<dyn Error>> {
+fn run() -> Result<(), Error> {
     let host_port = env::args().nth(1).unwrap_or(DEFAULT_ADDRESS.into());
 
     let stdin = io::stdin();
